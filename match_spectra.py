@@ -33,8 +33,10 @@ def closest_value(table, value,toleration):
     idx = np.argmin(np.abs(table - value))
     deviation = np.abs(table[idx] - value)
     if( deviation < toleration):
+        #print("Another object identified.................")
         return idx, deviation
     else:
+        #print("Object not identified.....................")
         raise Exception('Above tolerations')
 
 
@@ -53,7 +55,9 @@ if __name__ == "__main__":
     # get the list of filenames
     print("Atempting at getting the filenames of the spectra....")
     import glob
-    filenames = glob.glob('/raid/scratch/vladg/wgetThreading/spectraFull/*.fits')
+    print("glob imported successfuly............................")
+    filenames = glob.glob('../wgetThreading/spectraFull/*.fits')
+    print("ALL FILES OBTAINED. Number of them is "+str(len(filenames)))
     print ("obtaining filenames took"+ str(time.time() - start)+" seconds.")
     
     i = 0
@@ -64,20 +68,28 @@ if __name__ == "__main__":
         f = fits.open(filename)
         # find closest value to curent RA
         try:
+            print("Try new spectra")
             idx, deviation = closest_value(data_table['#ra'],f[0].header['RA'],toleration)
+            
+            print("Value found..................................")
             # Create a new dataframe to store the current spectra
             df_current = pd.DataFrame(columns=['flux','model'])
+            print("DF created...................................")
             df_current['flux'] = f[1].data['flux']
             df_current['model'] = f[1].data['model']
+            print("spectra added................................")
             df_current.objid = data_table['objid'].iloc[idx]
             df_current.classObj = data_table['class'].iloc[idx]
             df_current.subclassObj = data_table['subclass'].iloc[idx]
             df_current.z = data_table['z'].iloc[idx]
+            print("Objects added................................")
             df_current.header = f[0].header
             
             # save dataframe in location
             save_obj(df_current,name = (location_spectra+f[0].header['NAME']))
-            
+            del df_current
+            filenames_saved = glob.glob(location_spectra)
+            print(str(len(filenames_saved))+' files were saved.....................')
         except:
             """
             print('ERROR!! The difference between the matched RA and the current RA'+
