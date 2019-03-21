@@ -40,13 +40,13 @@ def closest_value(table, value,toleration):
 
 
 if __name__ == "__main__":
-    toleration = 1e-3
+    toleration = 1e-5
     not_matched = []
     location_spectra = 'spectra_matched/'
     if not os.path.exists(location_spectra):
         os.makedirs(location_spectra)
     
-    filename = 'SciServerDownload/test_query_table_4M'    
+    filename = '../moreData/test_query_table_4M'    
     data_table=load_obj(filename)
     
     # get the list of filenames
@@ -72,8 +72,10 @@ if __name__ == "__main__":
             save_obj(df_current,name = (location_spectra+f[0].header['NAME']))
             
         except:
+            """
             print('ERROR!! The difference between the matched RA and the current RA'+
                   ' was above the threshold of ' + str(deviation))
+            """
             not_matched.append(f[0].header)
         
     save_obj(not_matched,name = (location_spectra+'notMatched'))
