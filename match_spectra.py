@@ -10,10 +10,10 @@ objects
 """
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import os
 import pickle
 from astropy.io import fits
+import time
 
 # collect previous garbage
 import gc
@@ -46,14 +46,21 @@ if __name__ == "__main__":
     if not os.path.exists(location_spectra):
         os.makedirs(location_spectra)
     
-    filename = '../moreData/test_query_table_4M'    
+    filename = '../moreData/test_query_table_1M'    
     data_table=load_obj(filename)
     
+    start = time.time()
     # get the list of filenames
+    print("Atempting at getting the filenames of the spectra....")
     import glob
-    filenames = glob.glob('spectraFull/*.fits')
+    filenames = glob.glob('/raid/scratch/vladg/wgetThreading/spectraFull/*.fits')
+    print ("obtaining filenames took"+ str(time.time() - start)+" seconds.")
     
+    i = 0
     for filename in filenames:
+        i += 1
+        if(i%(len(filenames)/100)==0):
+            print("Progress is "+str(i/len(filenames))+" %")
         f = fits.open(filename)
         # find closest value to curent RA
         try:
