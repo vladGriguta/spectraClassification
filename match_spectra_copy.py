@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Mar 14 17:59:30 2019
+
 @author: vladgriguta
+
 This script matches the fits files containing spectra with the photometric
 objects 
 """
@@ -11,6 +13,8 @@ import pandas as pd
 import os
 import pickle
 from astropy.io import fits
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 import time
 
 # collect previous garbage
@@ -33,19 +37,33 @@ def closest_value(table, ra, dec, tolerance):
     
     current_distance = distance_on_sphere(np.array(data_table['#ra']-ra),
                                         np.array(data_table['dec']-dec))
+
     idx_min = np.argmin(current_distance)
     deviation_distance = current_distance[idx_min]
-    print(deviation_distance)
+
+    #print(deviation_distance)
     if( deviation_distance < tolerance):
         print('ra dif is '+str(np.abs(table['#ra'].iloc[idx]-ra)))
         print('dec dif is '+str(np.abs(table['dec'].iloc[idx]-dec)))
-        if( (np.abs(table['#ra'].iloc[idx]-ra)<1) & (np.abs(table['dec'].iloc[idx]-dec) < 1)):
-            print(deviation_distance)
-            return idx, deviation_distance
+        #if( (np.abs(table['#ra'].iloc[idx]-ra)<1) & (np.abs(table['dec'].iloc[idx]-dec) < 1)):
+            #print(deviation_distance)
+        return idx, deviation_distance
+        print('nkvjfnswfjvnbdkj.................')
     else:
         #print("Object not identified.....................")
         raise Exception('Above tolerations')
 
+
+def match_astropy(ra1,ra2,dec1,dec2):
+
+    map_sep = 1.0 * u.arcsec
+    spec_cat = SkyCoord(ra=ra1*u.degree, dec=dec1*u.degree)  
+    photo_cat = SkyCoord(ra=ra2*u.degree, dec=dec2*u.degree)  
+    idx, d2d, d3d = spec_cat.match_to_catalog_sky(photo_cat)
+    print('len of idx '+str(len(idx)))
+    #sep_constraint = idx < map_sep
+    matches = photo_cat[idx]
+    return idx, d2d, d3d,matches
 
 
 if __name__ == "__main__":
@@ -67,20 +85,47 @@ if __name__ == "__main__":
     print("ALL FILES OBTAINED. Number of them is "+str(len(filenames)))
     print ("obtaining filenames took "+ str(time.time() - start)+" seconds.")
     
+    ra2 = []
+    dec2 = []
+    i = 0
+    for filename in filenames[0:1]:
+        i += 1
+        if(i%(len(filenames)/100)==0):
+            print("Progress is "+str(i/len(filenames))+" %")
+        
+        try:
+            f = fits.open(filename)
+            ra2.append(f[0].header['RA'])
+            dec2.append(f[0].header['DEC'])
+        except:
+            print(filename)
 
+    ra1 = np.array(data_table['#ra'])
+    dec1 = np.array(data_table['dec'])
+    print('got here.......')
+    idx, d2d, d3d,matches = match_astropy(ra1=np.array(ra2),dec1=np.array(dec2),
+                                          ra2 = ra1,dec2 = dec1)
+    print('astropy over.....................................................')
+    
     
     i = 0
-    for filename in filenames:
+    for filename in filenames[0:1]:
         i += 1
         if(i%(len(filenames)/100)==0):
             print("Progress is "+str(i/len(filenames))+" %")
         f = fits.open(filename)
         # find closest value to curent RA
+        #print("Try new spectra")
+        idx, deviation = closest_value( table = data_table[['#ra','dec']], ra = f[0].header['RA'],
+                                                            dec = f[0].header['DEC'], tolerance = 1000)
         try:
             #print("Try new spectra")
             idx, deviation = closest_value( table = data_table[['#ra','dec']], ra = f[0].header['RA'],
-                                                                dec = f[0].header['DEC'], tolerance = tolerance)
-            
+                                                                dec = f[0].header['DEC'], tolerance = 1000)
+            print('.....................................'+str(deviation))
+            print('.....................................'+str(f[0].header['RA']))
+            print('.....................................'+str(f[0].header['DEC']))
+            """
             #print("Value found..................................")
             # Create a new dataframe to store the current spectra
             columns=['flux','model','class','subclass','z']
@@ -99,15 +144,15 @@ if __name__ == "__main__":
             #del df_current
             #filenames_saved = glob.glob(location_spectra)
             #print(str(len(filenames_saved))+' files were saved.....................')
+            """
         except:
-            """
-            print('ERROR!! The difference between the matched RA and the current RA'+
-                  ' was above the threshold of ' + str(deviation))
-            """
+            
+            #print('ERROR!! The difference between the matched RA and the current RA'+
+                  #' was above the threshold of ' + str(deviation))
+            
             not_matched.append(f[0].header)
         
     save_obj(not_matched,name = (location_spectra+'notMatched'))
     
-    
-    
+   
     

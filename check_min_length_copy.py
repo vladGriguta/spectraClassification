@@ -1,5 +1,7 @@
+
 """
 @author: vladgriguta
+
 This script checks the distance to the closest objects in the pkl files
 """
 import numpy as np
@@ -41,8 +43,10 @@ def check_distance(table):
     return array_min_dist
 
 
+
 if __name__ == '__main__':
     
+    """
     filename = '../moreData/test_query_table_4M'    
     data_table=load_obj(filename)
     reduced_table = data_table[['#ra','dec']]
@@ -50,3 +54,25 @@ if __name__ == '__main__':
     array_min_dist = check_distance(reduced_table)
     print('mean is: ' + str(np.mean(array_min_dist)))
     print('std is: ' + str(np.std(array_min_dist)))
+    """
+    table_spectra = pd.DataFrame(columns=['#ra','dec'])
+    import glob
+    print("glob imported successfuly............................")
+    filenames = glob.glob('spectraFull/*.fits')
+    print("ALL FILES OBTAINED. Number of them is "+str(len(filenames)))
+    
+    i = 0
+    for filename in filenames:
+        i += 1
+        if(i%(len(filenames)/100)==0):
+            print("Progress is "+str(i/len(filenames))+" %")
+        try:
+            f = fits.open(filename)
+            #table_spectra.append((f[0].header['RA'],f[0].header['DEC']))
+        table_spectra.append({'#ra':f[0].header['RA'],'dec':f[0].header['DEC']})
+        except:
+            print(filename)
+            
+    array_min_spectra = check_distance(table_spectra)
+    
+    
