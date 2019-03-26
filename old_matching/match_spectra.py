@@ -63,7 +63,7 @@ if __name__ == "__main__":
     print("Atempting at getting the filenames of the spectra....")
     import glob
     print("glob imported successfuly............................")
-    filenames = glob.glob('spectraFull/*.fits')
+    filenames = glob.glob('../spectraFull/*.fits')
     print("ALL FILES OBTAINED. Number of them is "+str(len(filenames)))
     print ("obtaining filenames took "+ str(time.time() - start)+" seconds.")
     

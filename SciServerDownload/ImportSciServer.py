@@ -28,7 +28,8 @@ token = Authentication.login(Authentication_loginName, Authentication_loginPassw
 #This webapge is good to check your SQL syntax if you're having problems: http://skyserver.sdss.org/dr13/en/tools/search/form/searchform.aspx
 
 query="""
-SELECT top 4000000 sp.ra,sp.dec,sp.z,sp.class,sp.subclass,
+SELECT top 4000000 sp.ra,sp.dec,sp.z,
+sp.class,sp.subclass,
 sp.psfmag_u-sp.extinction_u AS mag_u,
 sp.psfmag_g-sp.extinction_g AS mag_g,
 sp.psfmag_r-sp.extinction_r AS mag_r,
