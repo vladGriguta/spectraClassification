@@ -1,0 +1,40 @@
+import numpy as np
+import pandas as pd
+import time
+import pickle
+import re
+
+def filename_match(filename,matching):
+    name = filename.split('/')[len(filename.split('/'))-1]
+    plate = int(re.findall(r"[\w']+",name)[1])
+    mjd = int(re.findall(r"[\w']+",name)[2])
+    fibre = int(re.findall(r"[\w']+",name)[3])
+    
+    # Do a search in steps
+    for i in range(len(matching[1].data)):
+        if(matching[1].data['PLATE'].iloc[i] == plate):
+            if(matching[1].data['MJD'].iloc[i] == mjd):
+                if(matching[1].data[])
+
+if __name__=='__main__':
+    from astropy.io import fits
+    matching=fits.open(‘../matchData/specObj-dr14.fits’, memmap=True)
+    #had some memory issues since this is a huge file, i think memmap helped.
+    #matching[1].data[]
+
+    start = time.time()
+    import glob
+    print('glob successfully imported.........................')
+    filenames = glob.glob('../wgetThreading/spectraFull/*fits')
+    print("ALL FILES OBTAINED. Number of them is "+str(len(filenames)))
+    print ("obtaining filenames took "+ str(time.time() - start)+" seconds.")
+
+    for i in range(len(filenames)):
+
+        if(i%(len(filenames)/100)==0):
+            print("Progress is "+str(i/len(filenames))+" %")
+        
+        filename = filenames[i]
+        f = fits.open(filename)
+        
+        
