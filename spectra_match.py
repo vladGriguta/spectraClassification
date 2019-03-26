@@ -34,7 +34,8 @@ def filename_match(filename,matching):
         z_ = matched_all['Z'].iloc[0]                                                          
         z_err = matched_all['Z_ERR'].iloc[0]                                                   
         z_warn = matched_all['ZWARNING'].iloc[0]                                               
-        best_obj = matched_all['BESTOBJID'].iloc[0]                                            
+        best_obj = matched_all['BESTOBJID'].iloc[0]
+        instrument = matched_all['INSTRUMENT'].iloc[0]
         #remove the matching                                                                
         matching.drop(matched_all.index,inplace=True)
     """
@@ -55,34 +56,25 @@ def filename_match(filename,matching):
                     break
     """
     if(match_found):
-        return matching,class_,subclass_,z_,z_err,z_warn,best_obj,name.split('.')[0]
+        return matching,class_,subclass_,z_,z_err,z_warn,best_obj,instrument,name.split('.')[0]
     else:
         print(str(plate)+'-'+str(mjd)+str(fiber)+' not found.')
         raise Exception('No match found')
 
 if __name__=='__main__':
-    location_spectra = 'spectra_matched/'
+    location_spectra = 'spectra_matched_new/'
     if not os.path.exists(location_spectra):
         os.makedirs(location_spectra)    
 
     f=fits.open('../matchData/specObj-dr14.fits', memmap=True)
     #had some memory issues since this is a huge file, i think memmap helped.
     # get the columns that we need
-    columns = ['PLATE','MJD','FIBERID','CLASS','SUBCLASS','Z','Z_ERR','ZWARNING','BESTOBJID']
+    columns = ['PLATE','MJD','FIBERID','CLASS','SUBCLASS','Z','Z_ERR','ZWARNING','BESTOBJID','INSTRUMENT']
     matching = pd.DataFrame(columns=columns)
-    matching['PLATE'] = f[1].data['PLATE']
-    matching['MJD'] = f[1].data['MJD']
-    matching['FIBERID'] = f[1].data['FIBERID']    
-    matching['CLASS'] = f[1].data['CLASS']
-    matching['SUBCLASS'] = f[1].data['SUBCLASS']
-    matching['Z'] = f[1].data['Z']
-    matching['Z_ERR'] = f[1].data['Z_ERR']
-    matching['ZWARNING'] = f[1].data['ZWARNING']
-    matching['BESTOBJID'] = f[1].data['BESTOBJID']
-    
-    print(len(matching))
-    print(matching['CLASS'].iloc[0])
-    print(f[1].data['CLASS'][0])
+    from astropy.table import Table
+    t = Table.read(f[1])
+    matching = t[columns].to_pandas()
+    matching = pd.DataFrame(matching)
 
     start = time.time()
     import glob
@@ -107,14 +99,14 @@ if __name__=='__main__':
         
         # now try to find match
         try:
-            matching,class_,subclass_,z_,z_err,z_warn,best_obj,name = filename_match(filename,matching)
+            matching,class_,subclass_,z_,z_err,z_warn,best_obj,instrument,name = filename_match(filename,matching)
         except:
             print('No match was found for element '+str(i))
             not_matched.append(filename)
             continue
 
         # now add the matched objects to a dataframe
-        columns=['flux','model','class','subclass','z','z_err','z_warn','best_obj']
+        columns=['flux','model','class','subclass','z','z_err','z_warn','best_obj','instrument']
         df_current = pd.DataFrame(columns=columns)
         df_current['flux'] = f[1].data['flux']
         df_current['model'] = f[1].data['model']
@@ -124,6 +116,7 @@ if __name__=='__main__':
         df_current['z_err'] = z_err
         df_current['z_warn'] = z_warn
         df_current['best_obj'] = best_obj
+        df_current['instrument'] = instrument
 
         save_obj(df_current,name = (location_spectra+name))
 

@@ -1,5 +1,5 @@
 
 # Ignore these kind of files
 *.pkl
-#*.fits
+*.fits
 
