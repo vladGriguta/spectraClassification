@@ -18,14 +18,31 @@ def filename_match(filename,matching):
     name = filename.split('/')[len(filename.split('/'))-1]
     plate = int(re.findall(r"[\w']+",name)[1])
     mjd = int(re.findall(r"[\w']+",name)[2])
-    fibre = int(re.findall(r"[\w']+",name)[3])
+    fiber = int(re.findall(r"[\w']+",name)[3])
     
     match_found = False
+    matched_plate = matching[matching['PLATE'] == plate]
+    #print('Plate...... '+str(len(matched_plate)))
+    matched_plate_mjd = matched_plate[matched_plate['MJD'] == mjd]
+    #print('plate-mjd.. '+str(len(matched_plate_mjd)))
+    matched_all = matched_plate_mjd[matched_plate_mjd['FIBERID'] == fiber]
+    print('all........ '+str(len(matched_all)))
+    if(len(matched_all)>0):
+        match_found = True
+        class_ = matched_all['CLASS'].iloc[0]                                         
+        subclass_ = matched_all['SUBCLASS'].iloc[0]                                            
+        z_ = matched_all['Z'].iloc[0]                                                          
+        z_err = matched_all['Z_ERR'].iloc[0]                                                   
+        z_warn = matched_all['ZWARNING'].iloc[0]                                               
+        best_obj = matched_all['BESTOBJID'].iloc[0]                                            
+        #remove the matching                                                                
+        matching.drop(matched_all.index,inplace=True)
+    """
     # Do a search in steps
     for i in range(len(matching)):
         if(matching['PLATE'].iloc[i] == plate):
             if(matching['MJD'].iloc[i] == mjd):
-                if(matching['FIBERID'].iloc[i] == fibre):
+                if(matching['FIBERID'].iloc[i] == fiber):
                     match_found = True
                     class_ = matching['CLASS'].iloc[i]
                     subclass_ = matching['SUBCLASS'].iloc[i]
@@ -36,11 +53,11 @@ def filename_match(filename,matching):
                     #remove the matching
                     matching.drop(matching.data.index(i),inplace=True)
                     break
-                    print(i)
+    """
     if(match_found):
-        return matching,class_,subclass_,z_,z_err,z_warn,best_obj
+        return matching,class_,subclass_,z_,z_err,z_warn,best_obj,name.split('.')[0]
     else:
-        print(str(plate)+'-'+str(mjd)+str(fibre)+' not found.')
+        print(str(plate)+'-'+str(mjd)+str(fiber)+' not found.')
         raise Exception('No match found')
 
 if __name__=='__main__':
@@ -51,7 +68,7 @@ if __name__=='__main__':
     f=fits.open('../matchData/specObj-dr14.fits', memmap=True)
     #had some memory issues since this is a huge file, i think memmap helped.
     # get the columns that we need
-    columns = ['PLATE','MJD','FIBREID','CLASS','SUBCLASS','Z','Z_ERR','ZWARNING','BESTOBJID']
+    columns = ['PLATE','MJD','FIBERID','CLASS','SUBCLASS','Z','Z_ERR','ZWARNING','BESTOBJID']
     matching = pd.DataFrame(columns=columns)
     matching['PLATE'] = f[1].data['PLATE']
     matching['MJD'] = f[1].data['MJD']
@@ -76,7 +93,7 @@ if __name__=='__main__':
 
     not_matched = []
     for i in range(len(filenames)):
-        print(i)
+        print('matching len........... '+str(len(matching)))
         if(i%(len(filenames)/10000)==0):
             print("Progress is "+str(i/len(filenames))+" %")
         
@@ -90,7 +107,7 @@ if __name__=='__main__':
         
         # now try to find match
         try:
-            matching,class_,subclass_,z_,z_err,z_warn,best_obj = filename_match(filename,matching)
+            matching,class_,subclass_,z_,z_err,z_warn,best_obj,name = filename_match(filename,matching)
         except:
             print('No match was found for element '+str(i))
             not_matched.append(filename)
@@ -108,7 +125,7 @@ if __name__=='__main__':
         df_current['z_warn'] = z_warn
         df_current['best_obj'] = best_obj
 
-        save_obj(df_current,name = (location_spectra+filename))
+        save_obj(df_current,name = (location_spectra+name))
 
     save_obj(not_matched,name = (location_spectra+'notMatched'))
     
