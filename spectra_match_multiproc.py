@@ -101,7 +101,7 @@ if __name__=='__main__':
     start = time.time()
     import glob
     print('glob successfully imported.........................')
-    filenames = glob.glob('spectraFull/*fits') # '../wgetThreading/' for the lofar machine
+    filenames = glob.glob('../wgetThreading/spectraFull/*fits') # '' for the lofar machine
     print("ALL FILES OBTAINED. Number of them is "+str(len(filenames)))
     print ("obtaining filenames took "+ str(time.time() - start)+" seconds.")
     
