@@ -22,7 +22,8 @@ from keras.utils import np_utils
 from keras.initializers import random_uniform
 from keras import layers
 from keras.optimizers import RMSprop
-
+import gc
+gc.collect()
 
 # load and save functions
 def save_obj(obj, name ):
@@ -39,18 +40,18 @@ def read_data(locationSpectra):
     filenames = glob.glob(locationSpectra+'*pkl')
     
     cut_off = 5000
-    X = np.zeros((len(filenames),cut_off,2))
+    X = np.zeros((4900,cut_off,2))
     #wavelength = np.zeros((len(filenames),cut_off))
-    X_scaled = np.zeros((len(filenames),cut_off,2))
+    X_scaled = np.zeros((4900,cut_off,2))
     y = []
     sc = MinMaxScaler()
     counter_excluded = 0
-    for i in range(len(filenames)):
+    for i in range(4900):
         df_current = load_obj(filenames[i])
         l = len(df_current['flux'])
         
         wavelength = np.power(10,df_current['loglam'][0:l])
-        flux = df_current['flux'][0:l]
+        flux = df_current['model'][0:l]
         flux_scaled = np.array(sc.fit_transform(np.array(flux).reshape(-1,1))).reshape(len(flux))
         
         X[i][0:l] = np.stack((wavelength,flux),axis=1)
@@ -205,10 +206,10 @@ if __name__ == '__main__':
     
     # Choose hyperparameters
     no_epochs = 2
-    batch_size = 64
+    batch_size = 32
     learning_rate = 0.0100
-    dropout_rate = 0.20
-    
+    dropout_rate = 0.05
+    """
     # Design the Network
     model = Sequential()
     model.add(layers.Conv2D(32, (1, 6), activation='relu',  input_shape=X_train[0].shape)) # Input shape is VERY fiddly. May need to try different things. 
@@ -218,7 +219,19 @@ if __name__ == '__main__':
     model.add(Dropout(dropout_rate))
     model.add(Dense(numberTargets, activation='softmax'))
     print(model.summary())
-    
+    """
+    # Design the Network
+    model = Sequential()
+    model.add(layers.SeparableConv2D(32, (1, 2), input_shape=X_train[0].shape, activation='relu'))
+    model.add(Dropout(dropout_rate))
+    #model.add(layers.BatchNormalization()) # BatchNormalization and dropout work poorly together, though - Ioffe & Szegedy 2015; Li et al. 2018 
+    model.add(layers.SeparableConv2D(64, (1, 3), activation='sigmoid'))
+    model.add(layers.SeparableConv2D(128, (1, 4), activation='sigmoid'))
+    model.add(Dropout(dropout_rate))
+    model.add(Flatten())
+    model.add(Dense(64, activation='sigmoid'))
+    model.add(Dense(32, activation='sigmoid'))
+    model.add(Dense(numberTargets, activation='softmax'))
     
     model.compile(optimizer=RMSprop(lr=learning_rate),
                   loss='categorical_crossentropy', # May need to change to binary_crossentropy or categorical_crossentropy

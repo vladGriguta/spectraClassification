@@ -168,6 +168,3 @@ def cm_analysis(y_true, y_pred, filename, labels, ymap=None, figsize=(10,10)):
     
 y_true = y_test.argmax(axis=1)
 cm_analysis(y_true, predicted_labels, filename='Example', labels=[0,1,2])
-
-
-Table.to_pandas
