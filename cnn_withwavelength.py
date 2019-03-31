@@ -10,6 +10,9 @@ import time
 import pickle
 import os
 import glob
+import multiprocessing
+freeProc = 2
+n_proc=multiprocessing.cpu_count()-freeProc
 from sklearn.metrics import confusion_matrix #, classification_report, f1_score, roc_curve, auc
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
@@ -67,6 +70,22 @@ def read_data(locationSpectra):
     
     return X,y,X_scaled
 
+
+def paralellised_append(elem_X,elem_X_new,min_X,step):
+    for j in range(elem_X.shape[0]):
+        if(elem_X[j,0]>0):
+            elem_X_new[int((elem_X[j,0] - min_X) / step)].append(elem_X[j,1])
+    return elem_X_new
+
+def paralellised_assign(elem_X_new):
+    for j in range(elem_X_new.shape[0]):
+        elem_X_new[j] = np.array(elem_X_new[j])
+        if(elem_X_new[j].size > 0):
+            elem_X_new[j] = np.mean(np.array(elem_X_new[j]))
+        else:
+            elem_X_new[j] = 0.
+    return elem_X_new
+
 def prepare_cnn_entries(X,n_nodes=100):
     """
     This function transforms the wavelength input to a discrete input so that
@@ -77,7 +96,7 @@ def prepare_cnn_entries(X,n_nodes=100):
     min_X = np.min(X_nozeros[:,0])
     max_X = np.max(X_nozeros[:,0])
     del X_nozeros
-    gc.collect()    
+    gc.collect()  
 
     
     
@@ -87,14 +106,11 @@ def prepare_cnn_entries(X,n_nodes=100):
     X_new = [[[] for i in range(n_nodes)] for j in range(X.shape[0])]
 
     
-    print('Start converting to discrete wavelength inputs...')
+    print('Start converting to discrete wavelength inputs...')    
     for i in range(X.shape[0]):
         if(i % int(X.shape[0] / 10) == 0):
             print('Part 1.... ' + str(round(100*i/X.shape[0],0)) + ' % completed')
-        for j in range(X.shape[1]):
-            if(X[i,j,0]>0):
-                X_new[i][int((X[i,j,0] - min_X) / step)].append(X[i,j,1])
-                #print(X_new[i][int((X[i,j,0] - min_X) / step)])
+        X_new[i] = paralellised_append(X[i],X_new[i],min_X,step)
     
     #del X
     gc.collect()
@@ -105,12 +121,7 @@ def prepare_cnn_entries(X,n_nodes=100):
     for i in range(X_new.shape[0]):
         if(i % int(X_new.shape[0] / 10) == 0):
             print('Part 2.... ' + str(round(100*i/X_new.shape[0])) + ' % completed')
-        for j in range(X_new.shape[1]):
-            X_new[i,j] = np.array(X_new[i,j])
-            if(X_new[i,j].size > 0):
-                X_new[i,j] = np.mean(np.array(X_new[i,j]))
-            else:
-                X_new[i,j] = 0.
+        X_new[i] = paralellised_assign(X_new[i])
             
     print(np.count_nonzero(X_new))
     
@@ -227,9 +238,9 @@ if __name__ == '__main__':
     if not os.path.exists(location_plots):
         os.makedirs(location_plots) 
     
-    X,y,_ = read_data(locationSpectra)
+    _,y,X = read_data(locationSpectra)
     
-    n_nodes = 100
+    n_nodes = 300
     X = prepare_cnn_entries(X,n_nodes)
     X = X.reshape((X.shape[0],X.shape[1],1))
     print('Successfull')
@@ -254,7 +265,7 @@ if __name__ == '__main__':
     """
     
     # Choose hyperparameters
-    no_epochs = 20
+    no_epochs = 25
     batch_size = 32
     learning_rate = 0.0100
     dropout_rate = 0.05
