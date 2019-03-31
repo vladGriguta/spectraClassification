@@ -48,7 +48,7 @@ def read_data(locationSpectra):
     counter_excluded = 0
     for i in range(4900):
         df_current = load_obj(filenames[i])
-        l = len(df_current['flux'])
+        l = len(df_current['model'])
         
         wavelength = np.power(10,df_current['loglam'][0:l])
         flux = df_current['model'][0:l]
@@ -61,10 +61,61 @@ def read_data(locationSpectra):
         
         y.append(df_current['information'].iloc[0])
     X = X[0:(len(X)-counter_excluded)]
+    X = np.array(X)
     wavelength = wavelength[0:(len(X)-counter_excluded)]
     y = np.array(y)
     
     return X,y,X_scaled
+
+def prepare_cnn_entries(X,n_nodes=100):
+    """
+    This function transforms the wavelength input to a discrete input so that
+    it can be fed to the CNN.
+    """
+    idx = X[:,:,0] > 0
+    X_nozeros = X[idx]
+    min_X = np.min(X_nozeros[:,0])
+    max_X = np.max(X_nozeros[:,0])
+    del X_nozeros
+    gc.collect()    
+
+    
+    
+    wavelength_all,step = np.linspace(min_X,max_X, num=n_nodes,retstep=True)
+    #wavelength_edges = np.histogram_bin_edges(wavelength_all,bins=n_nodes)
+
+    X_new = [[[] for i in range(n_nodes)] for j in range(X.shape[0])]
+
+    
+    print('Start converting to discrete wavelength inputs...')
+    for i in range(X.shape[0]):
+        if(i % int(X.shape[0] / 10) == 0):
+            print('Part 1.... ' + str(round(100*i/X.shape[0],0)) + ' % completed')
+        for j in range(X.shape[1]):
+            if(X[i,j,0]>0):
+                X_new[i][int((X[i,j,0] - min_X) / step)].append(X[i,j,1])
+                #print(X_new[i][int((X[i,j,0] - min_X) / step)])
+    
+    #del X
+    gc.collect()
+    
+    X_new = np.array(X_new)
+    print(np.count_nonzero(X_new))
+    
+    for i in range(X_new.shape[0]):
+        if(i % int(X_new.shape[0] / 10) == 0):
+            print('Part 2.... ' + str(round(100*i/X_new.shape[0])) + ' % completed')
+        for j in range(X_new.shape[1]):
+            X_new[i,j] = np.array(X_new[i,j])
+            if(X_new[i,j].size > 0):
+                X_new[i,j] = np.mean(np.array(X_new[i,j]))
+            else:
+                X_new[i,j] = 0.
+            
+    print(np.count_nonzero(X_new))
+    
+    return X_new
+        
 
 def encode_data(y):
     # encode class values as integers
@@ -89,13 +140,6 @@ def decode(dummy_y,encoder):
     return classes_y,encoded_y
 
 
-
-
-
-
-
-
-
 # Defining a function to plot smoother plots of validation and accuracy - this often helps to identify a trend better
 def smooth_curve(points, factor=0.8):
   smoothed_points = []
@@ -106,8 +150,6 @@ def smooth_curve(points, factor=0.8):
     else:
       smoothed_points.append(point)
   return smoothed_points
-
-
 
 
 #This longer code gets a prettier confusion matrix.
@@ -173,7 +215,7 @@ def plot_confusion_matrix(cm, target_names, location):
                     ha="center", va="center",
                     color="white" if cm[i, j] > thresh else "black")
     fig.tight_layout()
-    plt.savefig(location)
+    plt.savefig(location+'ConfusionMatrix')
     plt.close()
     return ax
 
@@ -181,11 +223,17 @@ def plot_confusion_matrix(cm, target_names, location):
 if __name__ == '__main__':
     # load all spectra in internal memory 
     locationSpectra = 'spectra_matched_multiproc/'
-    location_plots = 'CNN_plots/'
+    location_plots = 'CNN_plots_newInput/'
     if not os.path.exists(location_plots):
         os.makedirs(location_plots) 
     
     X,y,_ = read_data(locationSpectra)
+    
+    n_nodes = 100
+    X = prepare_cnn_entries(X,n_nodes)
+    X = X.reshape((X.shape[0],X.shape[1],1))
+    print('Successfull')
+
     
     dummy_y,encoder_y = encode_data(y)
     
@@ -199,26 +247,27 @@ if __name__ == '__main__':
     
     
     # Reshape for CNN. (Honestly, I'm not sure why this makes a difference) 
+    """
     X_train = np.reshape(X_train, (np.size(X_train,0),1, np.size(X_train,1),np.size(X_train,2)))
     X_test = np.reshape(X_test, (np.size(X_test,0),1, np.size(X_test,1),np.size(X_test,2)))
     X_val = np.reshape(X_val, (np.size(X_val,0),1, np.size(X_val,1),np.size(X_val,2)))
-    
+    """
     
     # Choose hyperparameters
-    no_epochs = 2
+    no_epochs = 20
     batch_size = 32
     learning_rate = 0.0100
     dropout_rate = 0.05
-    """
+
     # Design the Network
     model = Sequential()
-    model.add(layers.Conv2D(32, (1, 6), activation='relu',  input_shape=X_train[0].shape)) # Input shape is VERY fiddly. May need to try different things. 
+    model.add(layers.Conv1D(64, 6, activation='relu',  input_shape=X_train[0].shape)) # Input shape is VERY fiddly. May need to try different things. 
     model.add(Dropout(dropout_rate))
-    model.add(layers.Conv2D(64, (1, 4), activation='relu'))
-    model.add(layers.GlobalMaxPooling2D())
-    model.add(Dropout(dropout_rate))
+    model.add(layers.Conv1D(128, 6, activation='relu'))
+    model.add(layers.GlobalMaxPooling1D())
     model.add(Dense(numberTargets, activation='softmax'))
     print(model.summary())
+    
     """
     # Design the Network
     model = Sequential()
@@ -232,6 +281,7 @@ if __name__ == '__main__':
     model.add(Dense(64, activation='sigmoid'))
     model.add(Dense(32, activation='sigmoid'))
     model.add(Dense(numberTargets, activation='softmax'))
+    """
     
     model.compile(optimizer=RMSprop(lr=learning_rate),
                   loss='categorical_crossentropy', # May need to change to binary_crossentropy or categorical_crossentropy
@@ -294,5 +344,5 @@ if __name__ == '__main__':
 
     y_true = y_test.argmax(axis=1)
     #cm_analysis(y_true, predicted_labels, filename=location_plots+'confMatrix.png', labels=[0,1,2])
-    plot_confusion_matrix(cm, target_names, location_plots)
+    plot_confusion_matrix(cm, target_names, location=location_plots)
     plt.close()
