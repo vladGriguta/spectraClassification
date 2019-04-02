@@ -11,6 +11,7 @@ import pickle
 import os
 import glob
 import multiprocessing
+import itertools
 freeProc = 2
 n_proc=multiprocessing.cpu_count()-freeProc
 from sklearn.metrics import confusion_matrix #, classification_report, f1_score, roc_curve, auc
@@ -71,7 +72,12 @@ def read_data(locationSpectra):
     return X,y,X_scaled
 
 
-def paralellised_append(elem_X,elem_X_new,min_X,step):
+def paralellised_append(elem_X,min_X,step):
+    """
+    elem_X = varyingData
+    [min_X,step] = constantData
+    """
+    elem_X_new = [[] for i in range(n_nodes)]
     for j in range(elem_X.shape[0]):
         if(elem_X[j,0]>0):
             elem_X_new[int((elem_X[j,0] - min_X) / step)].append(elem_X[j,1])
@@ -100,17 +106,26 @@ def prepare_cnn_entries(X,n_nodes=100):
 
     
     
-    wavelength_all,step = np.linspace(min_X,max_X, num=n_nodes,retstep=True)
+    _,step = np.linspace(min_X,max_X, num=n_nodes,retstep=True)
     #wavelength_edges = np.histogram_bin_edges(wavelength_all,bins=n_nodes)
 
     X_new = [[[] for i in range(n_nodes)] for j in range(X.shape[0])]
+    
+    """
+    #multiproc try
+    varyingData = [X[i] for i in range(X.shape[0])]
+    constantData = [min_X,step]
 
+    with multiprocessing.Pool(processes=n_proc) as pool:
+        X_new=pool.starmap(paralellised_append, zip(varyingData, itertools.repeat(constantData)))
+        pool.close()
+    """
     
     print('Start converting to discrete wavelength inputs...')    
     for i in range(X.shape[0]):
         if(i % int(X.shape[0] / 10) == 0):
             print('Part 1.... ' + str(round(100*i/X.shape[0],0)) + ' % completed')
-        X_new[i] = paralellised_append(X[i],X_new[i],min_X,step)
+        X_new[i] = paralellised_append(X[i],min_X,step)
     
     #del X
     gc.collect()
@@ -211,7 +226,7 @@ def plot_confusion_matrix(cm, target_names, location):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     cax = ax.matshow(cm)
-    plt.title('Confusion matrix of the classifier')
+    plt.title('Confusion matrix after pre-processing')
     fig.colorbar(cax)
     ax.set_xticklabels([''] + target_names)
     ax.set_yticklabels([''] + target_names)
@@ -223,10 +238,10 @@ def plot_confusion_matrix(cm, target_names, location):
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
             ax.text(j, i, format(cm[i, j], fmt),
-                    ha="center", va="center",
-                    color="white" if cm[i, j] > thresh else "black")
+                    ha="center", va="center",fontsize = 14,
+                    color="red" if cm[i, j] > thresh else "red")
     fig.tight_layout()
-    plt.savefig(location+'ConfusionMatrix')
+    plt.savefig(location+'ConfusionMatrix.png')
     plt.close()
     return ax
 
@@ -234,17 +249,18 @@ def plot_confusion_matrix(cm, target_names, location):
 if __name__ == '__main__':
     # load all spectra in internal memory 
     locationSpectra = 'spectra_matched_multiproc/'
-    location_plots = 'CNN_plots_newInput/'
+    location_plots = 'CNN_plots_bad_forPres/'
     if not os.path.exists(location_plots):
         os.makedirs(location_plots) 
     
     _,y,X = read_data(locationSpectra)
     
+    """
     n_nodes = 300
     X = prepare_cnn_entries(X,n_nodes)
     X = X.reshape((X.shape[0],X.shape[1],1))
     print('Successfull')
-
+    """
     
     dummy_y,encoder_y = encode_data(y)
     
@@ -258,11 +274,11 @@ if __name__ == '__main__':
     
     
     # Reshape for CNN. (Honestly, I'm not sure why this makes a difference) 
-    """
+
     X_train = np.reshape(X_train, (np.size(X_train,0),1, np.size(X_train,1),np.size(X_train,2)))
     X_test = np.reshape(X_test, (np.size(X_test,0),1, np.size(X_test,1),np.size(X_test,2)))
     X_val = np.reshape(X_val, (np.size(X_val,0),1, np.size(X_val,1),np.size(X_val,2)))
-    """
+
     
     # Choose hyperparameters
     no_epochs = 25
